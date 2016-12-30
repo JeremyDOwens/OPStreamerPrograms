@@ -1,3 +1,22 @@
+/**
+ * Represents a project with a system of rules to reward broadcasters for different types of
+ * streams on Twitch. Class is represented by objects stored in a database, and can only
+ * be instantiated through calling the database. As such, all members are FINAL. The only mutable
+ * item is the List of ProgramRule(s), which can only be build through accesing the database.
+ * 
+ * Assumes production on Heroku with PostgreSQL
+ * 
+ * All FINAL members are declared public to facilitate access via dot notation.
+ * 
+ * Class Program
+ * Bugs: none known
+ *
+ * @author       Jeremy Owens
+ * @company      OP Group
+ * @version      1.0
+ * @since        2016-12-28
+ * @see also     ProgramParticipant, ProgramReward, Streamer, ProgramRule, ProgramEvaluator
+ */
 package tv.opg.streamerprograms;
 
 import java.sql.Connection;
@@ -9,53 +28,31 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import com.heroku.sdk.jdbc.DatabaseUrl;
+import tv.opg.streamerprograms.ProgramRule.*;
 
 public class Program {
-	public enum Frequency {
-		WEEKLY,
-		MONTHLY,
-		WEEK_IN_MONTH,
-		YEARLY,
-		WEEK_IN_YEAR,
-		MONTH_IN_YEAR
-	}
-	
-	public enum Operand {
-		GREATER_THAN,
-		LESS_THAN,
-		EQUAL_TO
-	}
-	
-	public enum Metric {
-		COMPOSITE,
-		GAME,
-		STREAMS,
-		VIEWERS,
-		BCTIME,
-		VIEWER_MINUTES,
-		FOLLOWER_CHANGE,
-		BCTIME_PERCENTAGE,
-		VIEWER_PULL,
-		VIEWER_MINUTE_PERCENTAGE
-	}
-
-	private interface ProgramRule {
-		public boolean ruleCheck(Map<Metric, Object> values);
-		public String getLimit();
-		public String getReward();
-		public Frequency getFrequency();
-		public Metric getMetric();
-	}
-	
+	/**ID in database table*/
 	public final int PROGRAM_ID;
+	/**Program name*/
 	public final String PROGRAM_NAME;
+	/**Sponsor of the program*/
 	public final String SPONSOR;
+	/**List of rules*/
 	private List<ProgramRule> rules;
 	
+	/**
+	 * Standard constructor blocked by throwing an exception.
+	 */
 	public Program() {
 		throw new UnsupportedOperationException("Class cannot be direcly instantiated.");
 	}
 	
+	/**
+	 * General constructor, only to be accessed privately.
+	 * @param id int
+	 * @param programName String
+	 * @param sponsor String
+	 */
 	private Program(int id, String programName, String sponsor) {
 	    this.PROGRAM_ID = id;
 		this.PROGRAM_NAME = programName;
@@ -64,16 +61,24 @@ public class Program {
 
 	}
 	
+	/**
+	 * Standard method for getting an instance of a Program. Finds the program in the
+	 * database, and returns an object associated with that name.
+	 * Usage: Program.getProgram("String with program's name here");
+	 * @param programName String the name of the program as stored in the Database
+	 * @return Program object for further use.
+	 */
 	public static Program getProgram(String programName) {	
 		Connection connection = null;
 		Program program = null;
 		try {
-	        connection = DatabaseUrl.extract().getConnection();
+	        connection = DatabaseUrl.extract().getConnection(); //Heroku postgres jdbc connection
 	        PreparedStatement ps = connection.prepareStatement("SELECT * FROM Programs WHERE programName = ?");
 	        ps.setString(1, programName);
 	        ResultSet rs = ps.executeQuery();
 	        if (rs.next()) {
-	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"));
+	        	//Instantiate program with fields from database
+	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor")); 
 	        }
 	        rs.close();
 	        ps.close();
@@ -84,10 +89,15 @@ public class Program {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
 		
-		program.setRules();
+		program.setRules(); //Build set of rules.
 		return program;
 	}
 	
+	/**
+	 * Alternative constructor calling the ID.
+	 * @param programID int The program_id stored in the database.
+	 * @return Program Object for further usage.
+	 */
 	public static Program getProgram(int programID) {	
 		Connection connection = null;
 		Program program = null;
@@ -112,6 +122,13 @@ public class Program {
 		return program;
 	}
 	
+	/**
+	 * Method to create a new program. This method inserts the required information into the Database and creates an
+	 * object to represent it.
+	 * @param programName String The name of the program.
+	 * @param sponsor String The company sponsoring the program.
+	 * @return Program An object representing the newly created program.
+	 */
 	public static Program createProgram(String programName, String sponsor) {
 		Connection connection = null;
 		try {
@@ -131,14 +148,22 @@ public class Program {
 		}
 	}
 	
+	/**
+	 * This method creates a rule for the program. It accepts only arrays for Metric, Operand, and Limit
+	 * to allow for the creation of composite rules.
+	 * Indeces of arrays should match. So m[0], op[0], and limit[0] would correspond to one portion of the rule.
+	 * @param m Metric[] the item being measured
+	 * @param op Operand[] greater, less, or equal
+	 * @param freq Frequency How often the system operates.
+	 * @param limit String[] 
+	 * @param reward
+	 * @return
+	 */
 	public Program createRule(Metric[] m, Operand op[], Frequency freq, String[] limit, String reward) {
 		if (m.length != op.length || op.length != limit.length) throw new IllegalArgumentException("Arrays must be of the same size.");
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
-	        Statement statement = connection.createStatement();
-	        statement.execute("CREATE TABLE IF NOT EXISTS ProgramRules(program_id int NOT NULL, metrics varchar(120) NOT NULL, operands varchar(120) NOT NULL, limits varchar(120) NOT NULL, frequency varchar(50) NOT NULL, reward varchar(120) NOT NULL, FOREIGN KEY (program_id) REFERENCES Programs)");
-	        statement.close();
 	        PreparedStatement stmt = connection.prepareStatement("INSERT INTO ProgramRules VALUES(?,?,?,?,?,?)");
 	        stmt.setInt(1, this.PROGRAM_ID);
 	        if (m.length > 1) {
@@ -183,6 +208,10 @@ public class Program {
 		}
 	}
 	
+	/**
+	 * This method grabs all rules corresponding to the current Program
+	 * from the database, compiles them, and adds them to the rules list. 
+	 */
 	private void setRules() {
 		rules = new ArrayList<>();
 		Connection connection = null;
@@ -208,7 +237,7 @@ public class Program {
 	        			mets[i] = Metric.valueOf(mArr[i]);
 	        			ops[i] = Operand.valueOf(opArr[i]);
 	        		}
-	        		compileRule(mets, ops, Frequency.valueOf(rs.getString("frequency")), limArr, rs.getString("reward") );
+	        		rules.add(compileRule(mets, ops, Frequency.valueOf(rs.getString("frequency")), limArr, rs.getString("reward")));
 	        	}
 	        }
 	        
@@ -220,6 +249,15 @@ public class Program {
 		}
 	}
 	
+	/**
+	 * Method to compile a composite rule into a ProgramRule.
+	 * @param m Metric[] 
+	 * @param op Operand[]
+	 * @param freq Frequency
+	 * @param limit String[]
+	 * @param reward String
+	 * @return ProgramRule
+	 */
 	private ProgramRule compileRule(Metric[] m, Operand[] op, Frequency freq, String[] limit, String reward) {
 		if (m.length != op.length || op.length != limit.length) throw new IllegalArgumentException("Arrays must be of the same size.");
 		List<ProgramRule> composite = new ArrayList<>();
@@ -248,6 +286,15 @@ public class Program {
 		};
 	}
 	
+	/**
+	 * Method to return a single boolean rule.
+	 * @param m Metric
+	 * @param op Operand
+	 * @param freq Frequency
+	 * @param limit String
+	 * @param reward String
+	 * @return
+	 */
 	private ProgramRule compileRule(Metric m, Operand op, Frequency freq, String limit, String reward) {
 		switch (op) {
 		case GREATER_THAN : 
@@ -328,6 +375,13 @@ public class Program {
 		}
 	}
 	
+	/**
+	 * A method for deleting a ProgramRule and resetting the rules list.
+	 * @param m
+	 * @param limit
+	 * @param reward
+	 * @return
+	 */
 	public Program deleteRule(String m, String limit, String reward) {
 		Connection connection = null;
 		try {
