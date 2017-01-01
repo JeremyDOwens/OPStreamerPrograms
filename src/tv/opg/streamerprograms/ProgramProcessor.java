@@ -68,7 +68,7 @@ public final class ProgramProcessor {
 				Connection c = null;
 				try {
 					c = DatabaseUrl.extract().getConnection();
-					PreparedStatement s = c.prepareStatement("SELECT COUNT(timestamp) as ct, AVG(viewers) as avg FROM streams WHERE channel = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp");
+					PreparedStatement s = c.prepareStatement("SELECT COUNT(timestamp) as ct, AVG(viewers) as avg FROM streams WHERE channel = ? AND timestamp >= ? AND timestamp <= ?");
 					s.setString(1, participant.STREAMER.CHANNEL);
 					s.setTimestamp(2, start);
 					s.setTimestamp(3, finish);
@@ -125,6 +125,7 @@ public final class ProgramProcessor {
 			    values.put(Metric.VIEWER_MINUTES, new Long(vmSum));
 			    values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(vmSum/totalViewerMinutes));
 			    values.put(Metric.VIEWER_PULL, pullSum);
+			    System.out.println("\n" + participant.STREAMER.CHANNEL);
 			    values.forEach((metric, value) -> {
 			    	System.out.println(metric + ": " + value);
 			    });

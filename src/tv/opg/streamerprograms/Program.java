@@ -287,16 +287,17 @@ public class Program {
 				return freq;
 			}
 			public Metric getMetric() {
-				return Metric.COMPOSITE;
+				return composite.get(composite.size()-1).getMetric();
 			}
 			public String getReward() {
 				return reward;
 			}
 			public String getLimit() {
-				return "Composite";
+				return composite.get(composite.size()-1).getLimit();
 			}
 			public boolean ruleCheck(Map<Metric, Object> values) {
 				for (ProgramRule rule: composite) {
+					System.out.println(rule.getMetric() + "," + values.get(rule.getMetric()));
 					if (!rule.ruleCheck(values)) return false;
 				}
 				return true;
