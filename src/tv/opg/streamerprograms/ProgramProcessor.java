@@ -141,7 +141,9 @@ public final class ProgramProcessor {
 	}
 	
 	public void processLastMonth(Program program) {
-		//Set times
+		//TO DO
+		throw new UnsupportedOperationException("Not yet implemented.");
+		/*
 		TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
 		Calendar cal = Calendar.getInstance(tz);
 		int lastMonth = cal.get(Calendar.MONTH) - 1;
@@ -271,7 +273,7 @@ public final class ProgramProcessor {
 			builder.append(ign + "\n");
 		}
 		RewardMailer mailer = new RewardMailer(this.program);
-		mailer.sendAcctMgrMail("Test", builder.toString());
+		mailer.sendAcctMgrMail("Test", builder.toString());*/
 			
 	}
 	private Map<String,List<Broadcast>> getStreams(Timestamp start, Timestamp finish) {
