@@ -37,6 +37,7 @@ public class Program {
 	public final String PROGRAM_NAME;
 	/**Sponsor of the program*/
 	public final String SPONSOR;
+	public final String[] GAMES;
 	/**List of rules*/
 	private List<ProgramRule> rules;
 	
@@ -53,8 +54,9 @@ public class Program {
 	 * @param programName String
 	 * @param sponsor String
 	 */
-	private Program(int id, String programName, String sponsor) {
-	    this.PROGRAM_ID = id;
+	private Program(int id, String programName, String sponsor, String[] games) {
+	    this.GAMES = games;
+		this.PROGRAM_ID = id;
 		this.PROGRAM_NAME = programName;
 	    this.SPONSOR = sponsor;
 	    this.rules = new ArrayList<>();
@@ -78,7 +80,7 @@ public class Program {
 	        ResultSet rs = ps.executeQuery();
 	        if (rs.next()) {
 	        	//Instantiate program with fields from database
-	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor")); 
+	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(",")); 
 	        }
 	        rs.close();
 	        ps.close();
@@ -107,7 +109,7 @@ public class Program {
 	        ps.setInt(1, programID);
 	        ResultSet rs = ps.executeQuery();
 	        if (rs.next()) {
-	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"));
+	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(","));
 	        }
 	        rs.close();
 	        ps.close();
@@ -129,7 +131,7 @@ public class Program {
 	 * @param sponsor String The company sponsoring the program.
 	 * @return Program An object representing the newly created program.
 	 */
-	public static Program createProgram(String programName, String sponsor) {
+	public static Program createProgram(String programName, String sponsor, String programEmail, String emailPW, String rewardFrame) {
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
@@ -138,14 +140,30 @@ public class Program {
 	        stmt.setString(2, sponsor);
 	        stmt.executeUpdate();
 	        stmt.close();
+	        Program p = getProgram(programName);
+	        PreparedStatement ps = connection.prepareStatement("INSERT INTO ProgramMailInfo VALUES(?,?,?,?)");
+	        ps.setInt(1, p.PROGRAM_ID);
+	        ps.setString(2, programEmail);
+	        ps.setString(3, emailPW);
+	        ps.setString(4, rewardFrame);
+	        ps.executeUpdate();
+	        ps.close();
 	    
-	        return getProgram(programName);
+	        return p;
 		} catch (Exception e){
 			System.out.println(e.getMessage());
 			return getProgram(programName);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
+	}
+	
+	/**
+	 * Method to get a copy of the list of rules
+	 * @return List<ProgramRule> ArrayList of rules
+	 */
+	public List<ProgramRule> getRules() {
+		return new ArrayList<>(rules);
 	}
 	
 	/**
@@ -313,11 +331,10 @@ public class Program {
 				}
 				public boolean ruleCheck(Map<Metric, Object> values) {
 					Object value = values.get(getMetric());
-					if (Long.class.isAssignableFrom(value.getClass())) {
+					if(Long.class.isAssignableFrom(value.getClass()))
 						if (((Long)value).longValue() > Long.parseLong(limit)) return true;
 						else return false;
-					}
-					else throw new IllegalArgumentException("LESS_THAN can only take Long as parameter");
+					else throw new IllegalArgumentException("GREATER_THAN can only accept Long.");
 				}
 			};
 		case LESS_THAN : 
@@ -336,12 +353,10 @@ public class Program {
 				}
 				public boolean ruleCheck(Map<Metric, Object> values) {
 					Object value = values.get(getMetric());
-					if (Long.class.isAssignableFrom(value.getClass())) {
+					if (Long.class.isAssignableFrom(value.getClass()))
 						if (((Long)value).longValue() < Long.parseLong(limit)) return true;
 						else return false;
-					}
-					else throw new IllegalArgumentException("LESS_THAN can only take Long as parameter");
-					
+					else throw new IllegalArgumentException("LESS_THAN can only accept Long");
 				}
 			};
 		case EQUAL_TO :
@@ -359,16 +374,40 @@ public class Program {
 					return limit;
 				}
 				public boolean ruleCheck(Map<Metric, Object> values) {
+					
 					Object value = values.get(getMetric());
-					if (Long.class.isAssignableFrom(value.getClass())) {
+					if (Long.class.isAssignableFrom(value.getClass()))
 						if (((Long)value).longValue() == Long.parseLong(limit)) return true;
 						else return false;
-					}
-					else if (String.class.isAssignableFrom(value.getClass())) {
+					else if (String.class.isAssignableFrom(value.getClass()))
 						if (((String)value).equals(limit)) return true;
 						else return false;
+					else throw new IllegalArgumentException("EQUAL_TO may only accept types Long and String.");
+				}
+			};
+		case ONE_OF :
+			return new ProgramRule() {
+				public Frequency getFrequency() {
+					return freq;
+				}
+				public Metric getMetric() {
+					return m;
+				}
+				public String getReward() {
+					return reward;
+				}
+				public String getLimit() {
+					return limit;
+				}
+				public boolean ruleCheck(Map<Metric, Object> values) {		
+					Object value = values.get(getMetric());
+					if (String.class.isAssignableFrom(value.getClass())) {
+						String[] limArr = limit.split("_");
+						for (String lim: limArr)
+						    if (((String)value).equals(lim)) return true;
+						return false;
 					}
-					else throw new IllegalArgumentException("EQUAL_TO can only take Long or String as parameter");
+					else throw new IllegalArgumentException("ONE_OF only accepts String.");
 				}
 			};
 		default : throw new IllegalArgumentException("Not a valid Metric.");

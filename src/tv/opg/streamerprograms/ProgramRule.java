@@ -2,6 +2,15 @@
  * Rules are added to Programs in order to define their logic. This interface defines the rules
  * through forcing several methods to be implemented.
  * 
+ * General use case is as a wrapper for boolean logic to be used in a tv.opg.streamerprogram.Program. Since in Java
+ * I can't create a List of function objects, I create a list of objects with a shared method.
+ * 
+ * When setting the Reward of a rule, note that "SPECIAL:sometexthere" denotes a reward type that needs
+ * human handling. Example: SPECIAL:drawingentry would indicate that satisfying the boolean entitles
+ * the participants to an entry in a drawing.
+ * 
+ * When defining a ONE_OF rule, items in the list should be a single string with values separated by an underscore(_).
+ * 
  * Interface ProgramRule
  * Bugs: none known
  *
@@ -28,12 +37,13 @@ public interface ProgramRule {
 	public enum Operand {
 		GREATER_THAN,
 		LESS_THAN,
-		EQUAL_TO
+		EQUAL_TO,
+		ONE_OF
 	}
 	
 	public enum Metric {
 		COMPOSITE,
-		GAME,
+		STATUS,
 		STREAMS,
 		VIEWERS,
 		BCTIME,
