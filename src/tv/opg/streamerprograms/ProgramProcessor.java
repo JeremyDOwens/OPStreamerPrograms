@@ -8,13 +8,11 @@ import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
-
 import com.heroku.sdk.jdbc.DatabaseUrl;
-
+import tv.opg.streamerprograms.ProgramRule.Frequency;
 import tv.opg.streamerprograms.ProgramRule.Metric;
 import tv.opg.twitchdata.Broadcast;
 import tv.opg.twitchdata.StreamSnapshot;
@@ -25,8 +23,12 @@ public final class ProgramProcessor {
 	public ProgramProcessor(Program program) {
 		this.program = program;
 	}
-	public void processLastWeek(Program program) {
-		//Set times
+	
+	public void processLastWeek() {
+		List<ProgramRule> rules = new ArrayList<>();
+		program.getRules().forEach((r) -> {
+			if (r.getFrequency() == Frequency.WEEKLY) rules.add(r);
+		});
 		TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
 		Calendar cal = Calendar.getInstance(tz);
 		cal.set(Calendar.HOUR_OF_DAY, 0);
@@ -40,16 +42,11 @@ public final class ProgramProcessor {
 		Timestamp start = new Timestamp(cal.getTimeInMillis());
 		cal.add(Calendar.DAY_OF_YEAR, -1);
 		Timestamp pullStart = new Timestamp(cal.getTimeInMillis());
-	//	StringBuilder builder = new StringBuilder();
+		StringBuilder builder = new StringBuilder();
+		Map<String,Map<ProgramParticipant, Integer>> special = new HashMap<>();
 		List<ProgramParticipant> participants = ProgramParticipant.getParticipants(program);
-	//	List<ProgramParticipant> qualifiers = new ArrayList<>();
-	//	List<ProgramReward> availableRewards = ProgramReward.getUnassignedRewards(program, "600 Gold");
 		Map<String, List<Broadcast>> map = getStreams(pullStart, finish);
-		
-		
-		
-		for (ProgramParticipant participant: participants) {
-			List<ProgramRule> rules = program.getRules();
+		for (ProgramParticipant participant: participants) {		
 			int streamCount = 0;
 			Timestamp last = null;
 			if (map.containsKey(participant.STREAMER.CHANNEL)) {
@@ -93,7 +90,6 @@ public final class ProgramProcessor {
 					}
 					ts.close();
 					t.close();
-
 				} catch (Exception e){			
 					System.out.println(e.getMessage());
 					e.printStackTrace(System.out);
@@ -104,7 +100,6 @@ public final class ProgramProcessor {
 			    long pullSum = 0;
 			    long vmSum = 0;
 			    int castCount = 0;
-
 			    for (Broadcast evt: map.get(participant.STREAMER.CHANNEL)) {
 			    	if ( evt.getStart().getTime() > start.getTime() ) {
 			    		values.put(Metric.BCTIME, new Long(((Long)values.get(Metric.BCTIME)).longValue() + evt.getLength()));
@@ -115,7 +110,6 @@ public final class ProgramProcessor {
 			    		if ((last == null || evt.getStart().getTime() - last.getTime() > (long)1000*60*60*12) && evt.getLength() > 24) {
 			    			streamCount++;
 					    	last = evt.getStart();
-			    		
 			    		}
 			    	}
 			    }
@@ -125,24 +119,46 @@ public final class ProgramProcessor {
 			    values.put(Metric.VIEWER_MINUTES, new Long(vmSum));
 			    values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(vmSum/totalViewerMinutes));
 			    values.put(Metric.VIEWER_PULL, pullSum);
-			    System.out.println("\n" + participant.STREAMER.CHANNEL);
+			    builder.append("\n" + participant.STREAMER.CHANNEL + "\n");
 			    values.forEach((metric, value) -> {
-			    	System.out.println(metric + ": " + value);
+			    	builder.append(metric + ": " + value + "\n");
 			    });
-			    
-			    for (ProgramRule rule: rules) {
-			    	if (rule.ruleCheck(values))System.out.println(participant.STREAMER.CHANNEL + " earned " + rule.getReward() + " with " + rule.getMetric() + " = " + values.get(rule.getMetric()));
+			    for (ProgramRule rule: rules) {	    	
+			    	if (rule.ruleCheck(values)){
+			    		if (rule.getReward().contains("SPECIAL:")) {
+			    			String reward = rule.getReward().replace("SPECIAL:", "");
+			    			if (special.containsKey(reward)) {
+				    			if (special.get(reward).containsKey(participant))
+				    				special.get(reward).put(participant, new Integer(special.get(reward).get(participant).intValue() +1));
+				    		}
+				    		else {
+				    			special.put(reward, new HashMap<>());
+				    			special.get(reward).put(participant, new Integer(1));
+				    		}
+			    		}
+			    		else ProgramReward.getOneUnassignedReward(program, rule.getReward()).assignReward(participant.STREAMER.ID, finish);
+			    		builder.append(participant.STREAMER.CHANNEL + " earned " + rule.getReward() + " with " + rule.getMetric() + " = " + values.get(rule.getMetric()) + "\n");
+			    	}
 			    }
 			}
+			special.forEach((reward, part) -> {
+				builder.append(reward + ":\n");
+				part.forEach((p, i) -> {
+					builder.append(p.STREAMER.CHANNEL + ": " + i.intValue() +"\n");
+				});
+			});
 		}
-	//	RewardMailer mailer = new RewardMailer(this.program);
-	//	mailer.sendAcctMgrMail("Test", builder.toString());
-
+		RewardMailer mailer = new RewardMailer(this.program);
+		mailer.sendAcctMgrMail("Results for Week ending: " + finish, builder.toString());
 	}
 	
-	public void processLastMonth(Program program) {
+	public void processLastMonth() {
 		//TO DO
-		throw new UnsupportedOperationException("Not yet implemented.");
+		//throw new UnsupportedOperationException("Not yet implemented.");
+		List<ProgramRule> rules = new ArrayList<>();
+		program.getRules().forEach((r) -> {
+			if (r.getFrequency() == Frequency.MONTHLY || r.getFrequency() == Frequency.WEEK_IN_MONTH) rules.add(r);
+		});
 		/*
 		TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
 		Calendar cal = Calendar.getInstance(tz);
@@ -276,6 +292,7 @@ public final class ProgramProcessor {
 		mailer.sendAcctMgrMail("Test", builder.toString());*/
 			
 	}
+	
 	private Map<String,List<Broadcast>> getStreams(Timestamp start, Timestamp finish) {
 		List<ProgramParticipant> pp = ProgramParticipant.getParticipants(this.program);
 		Map<String, List<Broadcast>> map = new HashMap<>();

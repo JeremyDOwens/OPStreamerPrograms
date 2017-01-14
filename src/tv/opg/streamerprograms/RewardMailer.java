@@ -78,7 +78,6 @@ public class RewardMailer {
                 message.setFrom(new InternetAddress(from));
                 message.setRecipients(Message.RecipientType.TO,
                   InternetAddress.parse(acctMgrs));
-            //        InternetAddress.parse("jeremy@opg.tv"));
                 message.setRecipients(Message.RecipientType.BCC,
                         InternetAddress.parse("jeremy@opg.tv"));
                 message.setSubject(subject);
@@ -92,8 +91,21 @@ public class RewardMailer {
             }
 	}
 	
+	/**
+	 * Groups rewards by the email address they are to be sent to, and sends rewards.
+	 * @param rewards List<ProgramReward> A list of the rewards to be distributed.
+	 * @param subject String Subject to be passed to the method
+	 * @param body String Variable message body to be passed to the method
+	 */
     public void sendRewardMail(List<ProgramReward> rewards, String subject, String body) {
         Properties props = new Properties();
+        Map<String, List<ProgramReward>> emails = new HashMap<>();
+        rewards.forEach((pr) -> {
+        	if (!emails.containsKey(pr.STREAMER.EMAIL)) {
+        		emails.put(pr.STREAMER.EMAIL, new ArrayList<>());
+        	}
+        	emails.get(pr.STREAMER.EMAIL).add(pr);
+        });
         props.put("mail.smtp.host", "smtp.emailsrvr.com");
         props.put("mail.smtp.socketFactory.port", "465");
         props.put("mail.smtp.socketFactory.class",
@@ -101,29 +113,35 @@ public class RewardMailer {
         props.put("mail.smtp.auth", "true");
         props.put("mail.smtp.port", "465"); 
         Session session = Session.getDefaultInstance(props,
-        	    new javax.mail.Authenticator() {
-                            @Override
-                            protected PasswordAuthentication getPasswordAuthentication() {
-                                return new PasswordAuthentication(from, pw);
-                                }
-        });
-        for (ProgramReward reward: rewards) {
-            try {
+        	new javax.mail.Authenticator() {
+                    @Override
+                    protected PasswordAuthentication getPasswordAuthentication() {
+                        return new PasswordAuthentication(from, pw);
+                    }
+            }); 
+        emails.forEach((eAdd, l) -> {
+        	StringBuilder rewardCodes = new StringBuilder();
+        	l.forEach((pr) -> {
+        		rewardCodes.append(pr.DESCRIPTION + ": " + pr.CODE + "\n");
+        	});
+        	try {
                 Message message = new MimeMessage(session);
                 message.setFrom(new InternetAddress(from));
                 message.setRecipients(Message.RecipientType.TO,
-                  InternetAddress.parse(reward.STREAMER.EMAIL));
+                  InternetAddress.parse(eAdd));
                 message.setRecipients(Message.RecipientType.BCC,
                         InternetAddress.parse("jeremy@opg.tv"));
                 message.setSubject(subject);
-                message.setText(rewardFrame.replace("OTHER_INFO", body).replace("KEY_CODE", reward.CODE).replace("KEY_DESC", reward.DESCRIPTION));
+                message.setText(rewardFrame.replace("OTHER_INFO", body).replace("KEY_CODES", rewardCodes.toString()));
 
                 Transport.send(message);
 
                 } catch (MessagingException e) {
-                    throw new RuntimeException(e);
-                    }
-            }
-        }
+                    System.out.println(e.getMessage());
+                    e.printStackTrace();
+                }
+        	
+        });
+    }
    
 }

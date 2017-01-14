@@ -215,7 +215,7 @@ public class ProgramReward {
 		List<ProgramReward> pr = new ArrayList<>();
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
-	        PreparedStatement ps = connection.prepareStatement("SELECT * FROM ProgramRewards WHERE program_id = ? AND isAssigned = true AND wasSent = false");
+	        PreparedStatement ps = connection.prepareStatement("SELECT * FROM ProgramRewards WHERE program_id = ? AND isAssigned = true AND wasSent = false ORDER BY streamer_id");
 	        ps.setInt(1, program.PROGRAM_ID);
 	        ResultSet rs = ps.executeQuery();
 	        while (rs.next()) {

@@ -23,7 +23,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -235,9 +234,6 @@ public class Program {
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
-	        Statement statement = connection.createStatement();
-	        statement.execute("CREATE TABLE IF NOT EXISTS ProgramRules(program_id int NOT NULL, metrics varchar(120) NOT NULL, operands varchar(120) NOT NULL, limits varchar(120) NOT NULL, frequency varchar(50) NOT NULL, reward varchar(120) NOT NULL, FOREIGN KEY (program_id) REFERENCES Programs)");
-	        statement.close();
 	        PreparedStatement stmt = connection.prepareStatement("SELECT * FROM ProgramRules WHERE program_id = ?");
 	        stmt.setInt(1, this.PROGRAM_ID);
 	        ResultSet rs = stmt.executeQuery();
