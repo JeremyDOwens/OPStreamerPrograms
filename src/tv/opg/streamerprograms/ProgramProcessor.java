@@ -47,78 +47,8 @@ public final class ProgramProcessor {
 		List<ProgramParticipant> participants = ProgramParticipant.getParticipants(program);
 		Map<String, List<Broadcast>> map = getStreams(pullStart, finish);
 		for (ProgramParticipant participant: participants) {		
-			int streamCount = 0;
-			Timestamp last = null;
 			if (map.containsKey(participant.STREAMER.CHANNEL)) {
-				Map<Metric, Object> values = new HashMap<>();
-				values.put(Metric.BCTIME, new Long(0));
-				values.put(Metric.STATUS, participant.STATUS);
-				values.put(Metric.VIEWERS, new Long(0));
-				values.put(Metric.STREAMS, new Long(0));
-				values.put(Metric.VIEWER_MINUTES, new Long(0));
-				values.put(Metric.BCTIME_PERCENTAGE, new Long(0));
-				values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(0));
-				values.put(Metric.FOLLOWER_CHANGE, new Long(0));
-				values.put(Metric.VIEWER_PULL, new Long(0));
-				Long totalViewerMinutes = null;
-				Long totalBCTime = null;
-				Connection c = null;
-				try {
-					c = DatabaseUrl.extract().getConnection();
-					PreparedStatement s = c.prepareStatement("SELECT COUNT(timestamp) as ct, AVG(viewers) as avg FROM streams WHERE channel = ? AND timestamp >= ? AND timestamp <= ?");
-					s.setString(1, participant.STREAMER.CHANNEL);
-					s.setTimestamp(2, start);
-					s.setTimestamp(3, finish);
-					ResultSet rs = s.executeQuery();
-					if (rs.next()) {
-						totalBCTime = new Long(rs.getLong("ct") * 6);
-						totalViewerMinutes = new Long(totalBCTime.longValue() * rs.getLong("avg"));
-					}
-					rs.close();
-					s.close();
-					PreparedStatement t = c.prepareStatement(
-							"SELECT b.timestamp, b.followers FROM (SELECT MAX(timestamp) as max, MIN(timestamp) as min FROM streams WHERE channel = ? AND timestamp >= ? AND timestamp <= ?) a INNER JOIN (SELECT followers, timestamp FROM streams WHERE channel = ?) b ON a.max = b.timestamp OR a.min = b.timestamp ORDER BY b.timestamp");
-					t.setString(1, participant.STREAMER.CHANNEL);
-					t.setTimestamp(2, start);
-					t.setTimestamp(3, finish);
-					t.setString(4, participant.STREAMER.CHANNEL);
-					ResultSet ts = t.executeQuery();
-					long firstF = 0;
-					if (ts.next()) {
-						firstF = ts.getLong("followers");
-						if (ts.next()) values.put(Metric.FOLLOWER_CHANGE, ts.getLong("followers") - firstF);
-					}
-					ts.close();
-					t.close();
-				} catch (Exception e){			
-					System.out.println(e.getMessage());
-					e.printStackTrace(System.out);
-				} finally {
-					if (c != null) try{c.close();} catch(SQLException e){}
-				}
-				long vsum = 0;
-			    long pullSum = 0;
-			    long vmSum = 0;
-			    int castCount = 0;
-			    for (Broadcast evt: map.get(participant.STREAMER.CHANNEL)) {
-			    	if ( evt.getStart().getTime() > start.getTime() ) {
-			    		values.put(Metric.BCTIME, new Long(((Long)values.get(Metric.BCTIME)).longValue() + evt.getLength()));
-			    		vsum += evt.avgViewers();
-			    		vmSum += evt.getLength()*evt.avgViewers();
-			    		pullSum += evt.getRampUp();
-			    		castCount++;
-			    		if ((last == null || evt.getStart().getTime() - last.getTime() > (long)1000*60*60*12) && evt.getLength() > 24) {
-			    			streamCount++;
-					    	last = evt.getStart();
-			    		}
-			    	}
-			    }
-			    values.put(Metric.STREAMS, new Long(streamCount));
-			    values.put(Metric.BCTIME_PERCENTAGE, new Long(((Long)values.get(Metric.BCTIME)).longValue()/totalBCTime));
-			    values.put(Metric.VIEWERS, new Long(vsum/castCount));
-			    values.put(Metric.VIEWER_MINUTES, new Long(vmSum));
-			    values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(vmSum/totalViewerMinutes));
-			    values.put(Metric.VIEWER_PULL, pullSum);
+				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
 			    builder.append("\n" + participant.STREAMER.CHANNEL + "\n");
 			    values.forEach((metric, value) -> {
 			    	builder.append(metric + ": " + value + "\n");
@@ -140,14 +70,14 @@ public final class ProgramProcessor {
 			    		builder.append(participant.STREAMER.CHANNEL + " earned " + rule.getReward() + " with " + rule.getMetric() + " = " + values.get(rule.getMetric()) + "\n");
 			    	}
 			    }
-			}
-			special.forEach((reward, part) -> {
-				builder.append(reward + ":\n");
-				part.forEach((p, i) -> {
-					builder.append(p.STREAMER.CHANNEL + ": " + i.intValue() +"\n");
-				});
-			});
+			}		
 		}
+		special.forEach((reward, part) -> {
+			builder.append(reward + ":\n");
+			part.forEach((p, i) -> {
+				builder.append("\t" + p.STREAMER.CHANNEL + ": " + i.intValue() +"\n");
+			});
+		});
 		RewardMailer mailer = new RewardMailer(this.program);
 		mailer.sendAcctMgrMail("Results for Week ending: " + finish, builder.toString());
 	}
@@ -155,11 +85,14 @@ public final class ProgramProcessor {
 	public void processLastMonth() {
 		//TO DO
 		//throw new UnsupportedOperationException("Not yet implemented.");
-		List<ProgramRule> rules = new ArrayList<>();
+		List<ProgramRule> monthlyRules = new ArrayList<>();
+		List<ProgramRule> weekInMonthRules = new ArrayList<>();
 		program.getRules().forEach((r) -> {
-			if (r.getFrequency() == Frequency.MONTHLY || r.getFrequency() == Frequency.WEEK_IN_MONTH) rules.add(r);
+			Frequency freq = r.getFrequency();
+			if (freq == Frequency.MONTHLY) monthlyRules.add(r);
+			else if (freq == Frequency.WEEK_IN_MONTH) weekInMonthRules.add(r);
 		});
-		/*
+		
 		TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
 		Calendar cal = Calendar.getInstance(tz);
 		int lastMonth = cal.get(Calendar.MONTH) - 1;
@@ -178,7 +111,6 @@ public final class ProgramProcessor {
 		Timestamp weekStart = new Timestamp(cal.getTimeInMillis());
 		cal.add(Calendar.DAY_OF_YEAR, -1);
 		Timestamp pullStart = new Timestamp(cal.getTimeInMillis());
-		Map<ProgramParticipant, Integer> entries = new HashMap<>();
 		List<Timestamp[]> weeks = new ArrayList<>();
 		cal.add(Calendar.DAY_OF_YEAR, 8);
 		while (cal.get(Calendar.MONTH) == lastMonth || (cal.get(Calendar.DAY_OF_MONTH) == 1 && cal.get(Calendar.MONTH) == Calendar.getInstance().get(Calendar.MONTH))) {
@@ -188,109 +120,152 @@ public final class ProgramProcessor {
 			cal.add(Calendar.DAY_OF_YEAR, 7);
 		}
 		StringBuilder builder = new StringBuilder();
-
+		Map<String,Map<ProgramParticipant, Integer>> special = new HashMap<>();
 		List<ProgramParticipant> participants = ProgramParticipant.getParticipants(program);
-		Map<ProgramParticipant, List<String>>  rewards = new HashMap<>();
-		String[] channels = new String[participants.size()];
-		List<ProgramReward> availableRewards = ProgramReward.getUnassignedRewards(program, "40 Orbs");
-		List<String> doubleRewardWinners = new ArrayList<>();
-		int iter = 0;
-		for (ProgramParticipant participant: participants) {
-			entries.put(participant, new Integer(0));
-			rewards.put(participant, new ArrayList<String>());
-			channels[iter] = participant.STREAMER.CHANNEL;
-			iter++;
-		}
+		
+		//Process the month
 		Map<String, List<Broadcast>> map = getStreams(pullStart, finish);
-		for (ProgramParticipant participant: participants) {
-			int streamCount = 0;
-			int streamTime = 0;
-			Timestamp last = null;
-			Map<Timestamp[], Integer> wMap = new HashMap<>();
+		for (ProgramParticipant participant: participants) {		
 			if (map.containsKey(participant.STREAMER.CHANNEL)) {
-				
-		    	for (Timestamp[] tArr: weeks) {
-		    		wMap.put(tArr, 0);
-		    	}
-			    for (Broadcast evt: map.get(participant.STREAMER.CHANNEL)) {
-			    	streamTime += evt.getLength();
-			    	for(Timestamp[] tArr: weeks) {
-			    		if ( evt.getStart().getTime() >= tArr[0].getTime() && evt.getStart().getTime() < tArr[1].getTime() && (last == null || evt.getStart().getTime() - last.getTime() > (long)1000*60*60*12) && evt.getLength() > 24) {
-			    			wMap.put(tArr, wMap.get(tArr).intValue() + 1);
+				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
+			    builder.append("\n" + participant.STREAMER.CHANNEL + ": Monthly\n");
+			    values.forEach((metric, value) -> {
+			    	builder.append(metric + ": " + value + "\n");
+			    });
+			    for (ProgramRule rule: monthlyRules) {	    	
+			    	if (rule.ruleCheck(values)){
+			    		if (rule.getReward().contains("SPECIAL:")) {
+			    			String reward = rule.getReward().replace("SPECIAL:", "");
+			    			if (special.containsKey(reward)) {
+				    			if (special.get(reward).containsKey(participant))
+				    				special.get(reward).put(participant, new Integer(special.get(reward).get(participant).intValue() +1));
+				    		}
+				    		else {
+				    			special.put(reward, new HashMap<>());
+				    			special.get(reward).put(participant, new Integer(1));
+				    		}
 			    		}
+			    		else ProgramReward.getOneUnassignedReward(program, rule.getReward()).assignReward(participant.STREAMER.ID, finish);
+			    		builder.append(participant.STREAMER.CHANNEL + " earned " + rule.getReward() + " with " + rule.getMetric() + " = " + values.get(rule.getMetric()) + "\n");
 			    	}
-			    	if ( evt.getStart().getTime() > start.getTime() && (last == null || evt.getStart().getTime() - last.getTime() > (long)1000*60*60*12) && evt.getLength() > 24) {
-			    		streamCount++;
-				    	last = evt.getStart();
-			    	}	
 			    }
 			}
-			int hoursStreamed = streamTime/60;
-
-		    builder.append(participant.STREAMER.CHANNEL + " had " + streamCount + " qualifying streams, and streamed for " + hoursStreamed + " hours between " + start + " and " + finish + "\n");
-		    if ( streamCount > 4) {
-		    	rewards.get(participant).add("40 Orbs");
-		    	entries.put(participant, entries.get(participant)+1);
-		    	builder.append(participant.STREAMER.CHANNEL + " qualified for 40 orbs and a drawing entry with " + streamCount + " streams.\n");
-		    }
-		    if ( hoursStreamed >= 20  ) {
-		    	doubleRewardWinners.add(participant.IGN);
-		    	entries.put(participant, entries.get(participant)+1);
-		    	builder.append(participant.STREAMER.CHANNEL + " qualified for double rewards by streaming for " + hoursStreamed + " hours.\n");
-		    	if ( hoursStreamed >= 30) {
-		    		rewards.get(participant).add("40 Orbs");
-			    	entries.put(participant, entries.get(participant)+1);
-			    	builder.append(participant.STREAMER.CHANNEL + " qualified for 40 orbs and a drawing entry by streaming for " + hoursStreamed + " hours.\n");	
-		    	}
-		    }
-
-	    	wMap.forEach( (t, i) -> {
-	    		if (i.intValue() > 1) {
-	    			entries.put(participant, entries.get(participant)+1);
-	    			builder.append(participant.STREAMER.CHANNEL + " qualified for a drawing entry by streaming " + i.intValue() + " times in the week ending " + t[1] + ".\n");
-	    		}
-	    		
-	    	});
-		    builder.append("\n");
-		}
-		Iterator<Map.Entry<ProgramParticipant, Integer>> it = entries.entrySet().iterator();
-		builder.append("Drawing entries for Emerging Talent:\n");
-		it.forEachRemaining(ent -> {
-			if (ent.getKey().STATUS.equals("Emerging Talent")) {
-				int numEntries = ent.getValue().intValue();
-				if (numEntries > 7) numEntries = 7;
-				builder.append(ent.getKey().STREAMER.CHANNEL + " - " + numEntries + "\n");
-			}
-		});
-
-		builder.append("\nDrawing entries for Streamer League:\n");
-		it = entries.entrySet().iterator();
-		it.forEachRemaining(ent -> {
-			if (ent.getKey().STATUS.equals("Streamer League")) {
-				int numEntries = ent.getValue().intValue();
-				if (numEntries > 7) numEntries = 7;
-				builder.append(ent.getKey().STREAMER.CHANNEL + " - " + numEntries + "\n");
-			}
-		});
-		Iterator<ProgramReward> rewardIter = availableRewards.iterator();
-		rewards.forEach( (pp, rList) -> {
-			for (String rS: rList) {
-				if(!rewardIter.hasNext()){
-					builder.append("Not enough codes to assign a reward for " + pp.STREAMER.CHANNEL + ".\n");
-					break;
-				}
-				if (rS.equals("40 Orbs")) {
-					ProgramReward.getReward(rewardIter.next().CODE).assignReward(pp.STREAMER.ID,finish);
-				}
-			}
-		});
-		builder. append("\nDouble Reward IGNs:\n");
-		for (String ign: doubleRewardWinners) {
-			builder.append(ign + "\n");
-		}
-		RewardMailer mailer = new RewardMailer(this.program);
-		mailer.sendAcctMgrMail("Test", builder.toString());*/
 			
+		}
+		
+		//Process each individual week
+		for(Timestamp[] week: weeks) {
+			map = getStreams(week[0], week[1]);
+			for (ProgramParticipant participant: participants) {
+				if (map.containsKey(participant.STREAMER.CHANNEL)) {
+					Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
+					builder.append("\n" + participant.STREAMER.CHANNEL + ": Week " + (weeks.indexOf(week) + 1) + "\n");
+				    values.forEach((metric, value) -> {
+				    	builder.append(metric + ": " + value + "\n");
+				    });
+				    for (ProgramRule rule: weekInMonthRules) {	    	
+				    	if (rule.ruleCheck(values)){
+				    		if (rule.getReward().contains("SPECIAL:")) {
+			    				String reward = rule.getReward().replace("SPECIAL:", "");
+			    				if (special.containsKey(reward)) {
+					    			if (special.get(reward).containsKey(participant))
+					    				special.get(reward).put(participant, new Integer(special.get(reward).get(participant).intValue() +1));
+					    		}
+					    		else {
+					    			special.put(reward, new HashMap<>());
+					    			special.get(reward).put(participant, new Integer(1));
+					    		}
+				    		}
+				    		else ProgramReward.getOneUnassignedReward(program, rule.getReward()).assignReward(participant.STREAMER.ID, finish);
+				    		builder.append(participant.STREAMER.CHANNEL + " earned " + rule.getReward() + " with " + rule.getMetric() + " = " + values.get(rule.getMetric()) + "\n");
+				    	}
+				    }
+				}
+			}
+		}
+		special.forEach((reward, part) -> {
+			builder.append(reward + ":\n");
+			part.forEach((p, i) -> {
+				builder.append("\t" + p.STREAMER.CHANNEL + ": " + i.intValue() +"\n");
+			});
+		});
+		RewardMailer mailer = new RewardMailer(this.program);
+		mailer.sendAcctMgrMail("Results for Month ending: " + finish, builder.toString());
+			
+	}
+	private Map<Metric, Object> getMetrics(ProgramParticipant participant, List<Broadcast> broadcasts, Timestamp start, Timestamp finish) {
+		Map<Metric, Object> values = new HashMap<>();
+		int streamCount = 0;
+		Timestamp last = null;
+		values.put(Metric.BCTIME, new Long(0));
+		values.put(Metric.STATUS, participant.STATUS);
+		values.put(Metric.VIEWERS, new Long(0));
+		values.put(Metric.STREAMS, new Long(0));
+		values.put(Metric.VIEWER_MINUTES, new Long(0));
+		values.put(Metric.BCTIME_PERCENTAGE, new Long(0));
+		values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(0));
+		values.put(Metric.FOLLOWER_CHANGE, new Long(0));
+		values.put(Metric.VIEWER_PULL, new Long(0));
+		Long totalViewerMinutes = null;
+		Long totalBCTime = null;
+		Connection c = null;
+		try {
+			c = DatabaseUrl.extract().getConnection();
+			PreparedStatement s = c.prepareStatement("SELECT COUNT(timestamp) as ct, AVG(viewers) as avg FROM streams WHERE channel = ? AND timestamp >= ? AND timestamp <= ?");
+			s.setString(1, participant.STREAMER.CHANNEL);
+			s.setTimestamp(2, start);
+			s.setTimestamp(3, finish);
+			ResultSet rs = s.executeQuery();
+			if (rs.next()) {
+				totalBCTime = new Long(rs.getLong("ct") * 6);
+				totalViewerMinutes = new Long(totalBCTime.longValue() * rs.getLong("avg"));
+			}
+			rs.close();
+			s.close();
+			PreparedStatement t = c.prepareStatement(
+					"SELECT b.timestamp, b.followers FROM (SELECT MAX(timestamp) as max, MIN(timestamp) as min FROM streams WHERE channel = ? AND timestamp >= ? AND timestamp <= ?) a INNER JOIN (SELECT followers, timestamp FROM streams WHERE channel = ?) b ON a.max = b.timestamp OR a.min = b.timestamp ORDER BY b.timestamp");
+			t.setString(1, participant.STREAMER.CHANNEL);
+			t.setTimestamp(2, start);
+			t.setTimestamp(3, finish);
+			t.setString(4, participant.STREAMER.CHANNEL);
+			ResultSet ts = t.executeQuery();
+			long firstF = 0;
+			if (ts.next()) {
+				firstF = ts.getLong("followers");
+				if (ts.next()) values.put(Metric.FOLLOWER_CHANGE, ts.getLong("followers") - firstF);
+			}
+			ts.close();
+			t.close();
+		} catch (Exception e){			
+			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
+		} finally {
+			if (c != null) try{c.close();} catch(SQLException e){}
+		}
+		long vsum = 0;
+	    long pullSum = 0;
+	    long vmSum = 0;
+	    int castCount = 0;
+	    for (Broadcast evt: broadcasts) {
+	    	if ( evt.getStart().getTime() > start.getTime() ) {
+	    		values.put(Metric.BCTIME, new Long(((Long)values.get(Metric.BCTIME)).longValue() + evt.getLength()));
+	    		vsum += evt.avgViewers();
+	    		vmSum += evt.getLength()*evt.avgViewers();
+	    		pullSum += evt.getRampUp();
+	    		castCount++;
+	    		if ((last == null || evt.getStart().getTime() - last.getTime() > (long)1000*60*60*12) && evt.getLength() > 24) {
+	    			streamCount++;
+			    	last = evt.getStart();
+	    		}
+	    	}
+	    }
+	    values.put(Metric.STREAMS, new Long(streamCount));
+	    values.put(Metric.BCTIME_PERCENTAGE, new Long(((Long)values.get(Metric.BCTIME)).longValue()/totalBCTime));
+	    values.put(Metric.VIEWERS, new Long(vsum/castCount));
+	    values.put(Metric.VIEWER_MINUTES, new Long(vmSum));
+	    values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(vmSum/totalViewerMinutes));
+	    values.put(Metric.VIEWER_PULL, pullSum);
+	    return values;
 	}
 	
 	private Map<String,List<Broadcast>> getStreams(Timestamp start, Timestamp finish) {
@@ -371,6 +346,7 @@ public final class ProgramProcessor {
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
+		
 	}
 
 }

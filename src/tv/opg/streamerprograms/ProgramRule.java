@@ -51,7 +51,7 @@ public interface ProgramRule {
 		FOLLOWER_CHANGE,
 		BCTIME_PERCENTAGE,
 		VIEWER_PULL,
-		VIEWER_MINUTE_PERCENTAGE
+		VIEWER_MINUTE_PERCENTAGE,
 	}
 	
 	public boolean ruleCheck(Map<Metric, Object> values);
