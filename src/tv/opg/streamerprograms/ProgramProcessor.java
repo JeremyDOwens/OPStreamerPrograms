@@ -128,6 +128,7 @@ public final class ProgramProcessor {
 		for (ProgramParticipant participant: participants) {		
 			if (map.containsKey(participant.STREAMER.CHANNEL)) {
 				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
+				if (values == null) continue;
 			    builder.append("\n" + participant.STREAMER.CHANNEL + ": Monthly\n");
 			    values.forEach((metric, value) -> {
 			    	builder.append(metric + ": " + value + "\n");
@@ -259,6 +260,7 @@ public final class ProgramProcessor {
 	    		}
 	    	}
 	    }
+	    if (totalBCTime == 0 || castCount == 0) return null;
 	    values.put(Metric.STREAMS, new Long(streamCount));
 	    values.put(Metric.BCTIME_PERCENTAGE, new Long(((Long)values.get(Metric.BCTIME)).longValue()/totalBCTime));
 	    values.put(Metric.VIEWERS, new Long(vsum/castCount));
