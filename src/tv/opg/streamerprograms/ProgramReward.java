@@ -52,10 +52,10 @@ public class ProgramReward {
 	        ResultSet rs = ps.executeQuery();
 	        if (rs.next()) {
 	        	pr = new ProgramReward(
-	        			Program.getProgram(rs.getString("program_id")), 
+	        			Program.getProgram(rs.getInt("program_id")), 
 	        			rs.getString("code"), 
 	        			rs.getString("description"), 
-	        			Streamer.getStreamer(rs.getInt("streamer_id")), 
+	        			rs.getObject("streamer_id") != null ? Streamer.getStreamer(rs.getInt("streamer_id")) : null, 
 	        			rs.getTimestamp("dateAwarded"), 
 	        			rs.getBoolean("isAssigned"), 
 	        			rs.getBoolean("wasSent"));
@@ -65,6 +65,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -87,6 +88,7 @@ public class ProgramReward {
 	        stmt.close();
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -106,7 +108,7 @@ public class ProgramReward {
 	        			program, 
 	        			rs.getString("code"), 
 	        			rs.getString("description"), 
-	        			Streamer.getStreamer(rs.getInt("streamer_id")), 
+	        			rs.getObject("streamer_id") != null ? Streamer.getStreamer(rs.getInt("streamer_id")) : null, 
 	        			rs.getTimestamp("dateAwarded"), 
 	        			rs.getBoolean("isAssigned"), 
 	        			rs.getBoolean("wasSent")));
@@ -116,6 +118,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -144,6 +147,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -174,6 +178,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -204,6 +209,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -226,6 +232,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -248,6 +255,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -267,6 +275,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -292,6 +301,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -310,6 +320,7 @@ public class ProgramReward {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}

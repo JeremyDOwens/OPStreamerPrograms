@@ -88,6 +88,7 @@ public class Program {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -117,6 +118,7 @@ public class Program {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
@@ -153,6 +155,7 @@ public class Program {
 	        return p;
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 			return getProgram(programName);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
@@ -431,6 +434,7 @@ public class Program {
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
 		} finally {
 			if (connection != null) try{connection.close();} catch(SQLException e){}
 		}
