@@ -14,20 +14,19 @@ public class RewardMailer {
 	private final String rewardFrame;
 	private final String from;
 	private final String pw;
-	private final String acctMgrs;
+	private final InternetAddress[] acctMgrs;
 	
 	public RewardMailer(Program program) {
 		String ams = System.getenv("ACCT_MGRS");
 		String[] amArr = ams.split(",");
-		for (String s: amArr) {
-			s = s+ "@opg.tv";
-		}
-		for (int i = 0; i < amArr.length; i++) {
-			ams = "";
-			if (i < amArr.length-1) ams = ams += amArr[i] + ", ";
-			else  ams = ams + amArr[i];
-		}
-		this.acctMgrs = ams;
+		InternetAddress[] amArr2 = new InternetAddress[amArr.length];
+		for (int i = 0; i < amArr.length; i++)
+			try {
+				amArr2[i] = new InternetAddress(amArr[i]+ "@opg.tv");
+			} catch (AddressException e) {
+				e.printStackTrace();
+			}
+		this.acctMgrs = amArr2;
 		String rf = null;
 		String rpw = null;
 		String rem = null;
@@ -77,7 +76,7 @@ public class RewardMailer {
                 Message message = new MimeMessage(session);
                 message.setFrom(new InternetAddress(from));
                 message.setRecipients(Message.RecipientType.TO,
-                  InternetAddress.parse(acctMgrs));
+                  acctMgrs);
                 message.setRecipients(Message.RecipientType.BCC,
                         InternetAddress.parse("jeremy@opg.tv"));
                 message.setSubject(subject);

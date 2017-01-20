@@ -61,6 +61,7 @@ public final class ProgramProcessor {
 			    			if (special.containsKey(reward)) {
 				    			if (special.get(reward).containsKey(participant))
 				    				special.get(reward).put(participant, new Integer(special.get(reward).get(participant).intValue() +1));
+				    			else special.get(reward).put(participant, new Integer(1));
 				    		}
 				    		else {
 				    			special.put(reward, new HashMap<>());
@@ -127,7 +128,7 @@ public final class ProgramProcessor {
 		//Process the month
 		Map<String, List<Broadcast>> map = getStreams(pullStart, finish);
 		for (ProgramParticipant participant: participants) {		
-			if (map.containsKey(participant.STREAMER.CHANNEL)&& map.get(participant.STREAMER.CHANNEL).size() > 0) {
+			if (map.containsKey(participant.STREAMER.CHANNEL) && map.get(participant.STREAMER.CHANNEL).size() > 0) {
 				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
 				if (values == null) continue;
 			    builder.append("\n" + participant.STREAMER.CHANNEL + ": Monthly\n");
@@ -141,6 +142,7 @@ public final class ProgramProcessor {
 			    			if (special.containsKey(reward)) {
 				    			if (special.get(reward).containsKey(participant))
 				    				special.get(reward).put(participant, new Integer(special.get(reward).get(participant).intValue() +1));
+				    			else special.get(reward).put(participant, new Integer(1));
 				    		}
 				    		else {
 				    			special.put(reward, new HashMap<>());
@@ -159,8 +161,9 @@ public final class ProgramProcessor {
 		for(Timestamp[] week: weeks) {
 			map = getStreams(week[0], week[1]);
 			for (ProgramParticipant participant: participants) {
-				if (map.containsKey(participant.STREAMER.CHANNEL)) {
+				if (map.containsKey(participant.STREAMER.CHANNEL) && map.get(participant.STREAMER.CHANNEL).size() > 0) {
 					Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
+					if (values == null) continue;
 					builder.append("\n" + participant.STREAMER.CHANNEL + ": Week " + (weeks.indexOf(week) + 1) + "\n");
 				    values.forEach((metric, value) -> {
 				    	builder.append(metric + ": " + value + "\n");
@@ -172,6 +175,7 @@ public final class ProgramProcessor {
 			    				if (special.containsKey(reward)) {
 					    			if (special.get(reward).containsKey(participant))
 					    				special.get(reward).put(participant, new Integer(special.get(reward).get(participant).intValue() +1));
+					    			else special.get(reward).put(participant, new Integer(1));
 					    		}
 					    		else {
 					    			special.put(reward, new HashMap<>());

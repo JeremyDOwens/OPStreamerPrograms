@@ -425,7 +425,9 @@ public class Program {
 	        connection = DatabaseUrl.extract().getConnection();
 	        PreparedStatement ps = connection.prepareStatement("DELETE FROM ProgramRules WHERE rule_id = ?;");
 	        ps.setInt(1, ruleID);
+	        ps.executeUpdate();
 	        ps.close();
+	        connection.close();
 	        
 		} catch (Exception e){
 			System.out.println(e.getMessage());
