@@ -49,6 +49,7 @@ public final class ProgramProcessor {
 		for (ProgramParticipant participant: participants) {		
 			if (map.containsKey(participant.STREAMER.CHANNEL) && map.get(participant.STREAMER.CHANNEL).size() > 0) {
 				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
+				if (values == null) continue;
 			    builder.append("\n" + participant.STREAMER.CHANNEL + "\n");
 			    values.forEach((metric, value) -> {
 			    	builder.append(metric + ": " + value + "\n");
@@ -126,7 +127,7 @@ public final class ProgramProcessor {
 		//Process the month
 		Map<String, List<Broadcast>> map = getStreams(pullStart, finish);
 		for (ProgramParticipant participant: participants) {		
-			if (map.containsKey(participant.STREAMER.CHANNEL)) {
+			if (map.containsKey(participant.STREAMER.CHANNEL)&& map.get(participant.STREAMER.CHANNEL).size() > 0) {
 				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
 				if (values == null) continue;
 			    builder.append("\n" + participant.STREAMER.CHANNEL + ": Monthly\n");
