@@ -37,6 +37,7 @@ public class Program {
 	public final String PROGRAM_NAME;
 	/**Sponsor of the program*/
 	public final String SPONSOR;
+	/**List of games used in checks*/
 	public final String[] GAMES;
 	/**List of rules*/
 	private Map<Integer, ProgramRule> rules;
@@ -294,7 +295,6 @@ public class Program {
 			}
 			public boolean ruleCheck(Map<Metric, Object> values) {
 				for (ProgramRule rule: composite) {
-					System.out.println(rule.getMetric() + "," + values.get(rule.getMetric()));
 					if (!rule.ruleCheck(values)) return false;
 				}
 				return true;
