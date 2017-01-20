@@ -47,7 +47,7 @@ public final class ProgramProcessor {
 		List<ProgramParticipant> participants = ProgramParticipant.getParticipants(program);
 		Map<String, List<Broadcast>> map = getStreams(pullStart, finish);
 		for (ProgramParticipant participant: participants) {		
-			if (map.containsKey(participant.STREAMER.CHANNEL)) {
+			if (map.containsKey(participant.STREAMER.CHANNEL) && map.get(participant.STREAMER.CHANNEL).size() > 0) {
 				Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
 			    builder.append("\n" + participant.STREAMER.CHANNEL + "\n");
 			    values.forEach((metric, value) -> {
