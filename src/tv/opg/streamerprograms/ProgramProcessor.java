@@ -26,7 +26,7 @@ public final class ProgramProcessor {
 	
 	public void processLastWeek() {
 		List<ProgramRule> rules = new ArrayList<>();
-		program.getRules().forEach((r) -> {
+		program.getRules().forEach((k,r) -> {
 			if (r.getFrequency() == Frequency.WEEKLY) rules.add(r);
 		});
 		TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
@@ -87,7 +87,7 @@ public final class ProgramProcessor {
 		//throw new UnsupportedOperationException("Not yet implemented.");
 		List<ProgramRule> monthlyRules = new ArrayList<>();
 		List<ProgramRule> weekInMonthRules = new ArrayList<>();
-		program.getRules().forEach((r) -> {
+		program.getRules().forEach((k,r) -> {
 			Frequency freq = r.getFrequency();
 			if (freq == Frequency.MONTHLY) monthlyRules.add(r);
 			else if (freq == Frequency.WEEK_IN_MONTH) weekInMonthRules.add(r);

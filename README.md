@@ -16,7 +16,7 @@ ProgramRewards (code varchar(100) NOT NULL, program_id int NOT NULL, description
 
 ProgramParticipants ( program_id int NOT NULL, streamer_id int NOT NULL, game varchar(100) NOT NULL, ign varchar(100) NOT NULL, status varchar(100) NOT NULL, FOREIGN KEY (program_id) REFERENCES Programs, FOREIGN KEY (streamer_id) REFERENCES Streamers)
 
-ProgramRules(program_id int NOT NULL, metrics varchar(120) NOT NULL, operands varchar(120) NOT NULL, limits varchar(120) NOT NULL, frequency varchar(50) NOT NULL, reward varchar(120) NOT NULL, FOREIGN KEY (program_id) REFERENCES Programs)
+ProgramRules(rule_id int SERIAL PRIMARY KEY,program_id int NOT NULL, metrics varchar(120) NOT NULL, operands varchar(120) NOT NULL, limits varchar(120) NOT NULL, frequency varchar(50) NOT NULL, reward varchar(120) NOT NULL, FOREIGN KEY (program_id) REFERENCES Programs)
 
 ProgramMailInfo(program id int NOT NULL, email varchar(40) NOT NULL, emailPW varchar(40) NOT NULL, rwFrame varchar(200) NOT NULL, FOREIGN KEY (program_id) REFERENCES Programs)
 

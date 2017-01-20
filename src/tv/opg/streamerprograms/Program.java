@@ -24,6 +24,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import com.heroku.sdk.jdbc.DatabaseUrl;
@@ -38,7 +39,7 @@ public class Program {
 	public final String SPONSOR;
 	public final String[] GAMES;
 	/**List of rules*/
-	private List<ProgramRule> rules;
+	private Map<Integer, ProgramRule> rules;
 	
 	/**
 	 * Standard constructor blocked by throwing an exception.
@@ -58,7 +59,7 @@ public class Program {
 		this.PROGRAM_ID = id;
 		this.PROGRAM_NAME = programName;
 	    this.SPONSOR = sponsor;
-	    this.rules = new ArrayList<>();
+	    this.rules = new HashMap<>();
 
 	}
 	
@@ -161,8 +162,8 @@ public class Program {
 	 * Method to get a copy of the list of rules
 	 * @return List<ProgramRule> ArrayList of rules
 	 */
-	public List<ProgramRule> getRules() {
-		return new ArrayList<>(rules);
+	public Map<Integer, ProgramRule> getRules() {
+		return new HashMap<>(rules);
 	}
 	
 	/**
@@ -181,7 +182,7 @@ public class Program {
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
-	        PreparedStatement stmt = connection.prepareStatement("INSERT INTO ProgramRules VALUES(?,?,?,?,?,?)");
+	        PreparedStatement stmt = connection.prepareStatement("INSERT INTO ProgramRules (program_id, metrics, operands, limits, frequency, reward) VALUES(?,?,?,?,?,?)");
 	        stmt.setInt(1, this.PROGRAM_ID);
 	        if (m.length > 1) {
 	        	StringBuilder builder = new StringBuilder();
@@ -230,7 +231,7 @@ public class Program {
 	 * from the database, compiles them, and adds them to the rules list. 
 	 */
 	private void setRules() {
-		rules = new ArrayList<>();
+		rules = new HashMap<>();
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
@@ -243,7 +244,7 @@ public class Program {
 	        	String[] limArr = rs.getString("limits").split(",");
 	        	if (mArr.length != opArr.length || limArr.length != opArr.length) throw new Error("Data anomoly cause arrays to have different lengths.");
 	        	int x = mArr.length;
-	        	if (x == 1) rules.add(compileRule(Metric.valueOf(mArr[0]), Operand.valueOf(opArr[0]), Frequency.valueOf(rs.getString("frequency")), limArr[0], rs.getString("reward")));
+	        	if (x == 1) rules.put(rs.getInt("rule_id"), compileRule(Metric.valueOf(mArr[0]), Operand.valueOf(opArr[0]), Frequency.valueOf(rs.getString("frequency")), limArr[0], rs.getString("reward")));
 	        	else {
 	        		Metric[] mets = new Metric[x];
 	        		Operand[] ops = new Operand[x];
@@ -251,7 +252,7 @@ public class Program {
 	        			mets[i] = Metric.valueOf(mArr[i]);
 	        			ops[i] = Operand.valueOf(opArr[i]);
 	        		}
-	        		rules.add(compileRule(mets, ops, Frequency.valueOf(rs.getString("frequency")), limArr, rs.getString("reward")));
+	        		rules.put(rs.getInt("rule_id"), compileRule(mets, ops, Frequency.valueOf(rs.getString("frequency")), limArr, rs.getString("reward")));
 	        	}
 	        }
 	        
@@ -418,16 +419,12 @@ public class Program {
 	 * @param reward
 	 * @return
 	 */
-	public Program deleteRule(String m, String limit, String reward) {
+	public Program deleteRule(int ruleID) {
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
-	        PreparedStatement ps = connection.prepareStatement("DELETE FROM ProgramRules WHERE program_id = ? AND limits = ? AND metrics = m AND reward = ?");
-	        ps.setInt(1, this.PROGRAM_ID);
-	        ps.setString(2, limit);
-	        ps.setString(3, m);
-	        ps.setString(4, reward);
-	        ps.executeUpdate();
+	        PreparedStatement ps = connection.prepareStatement("DELETE FROM ProgramRules WHERE rule_id = ?;");
+	        ps.setInt(1, ruleID);
 	        ps.close();
 	        
 		} catch (Exception e){
