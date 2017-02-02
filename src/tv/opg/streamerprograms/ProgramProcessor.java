@@ -162,7 +162,7 @@ public final class ProgramProcessor {
 			map = getStreams(week[0], week[1]);
 			for (ProgramParticipant participant: participants) {
 				if (map.containsKey(participant.STREAMER.CHANNEL) && map.get(participant.STREAMER.CHANNEL).size() > 0) {
-					Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), start, finish);
+					Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), week[0], week[1]);
 					if (values == null) continue;
 					builder.append("\n" + participant.STREAMER.CHANNEL + ": Week " + (weeks.indexOf(week) + 1) + "\n");
 				    values.forEach((metric, value) -> {
@@ -267,10 +267,10 @@ public final class ProgramProcessor {
 	    }
 	    if (totalBCTime == 0 || castCount == 0) return null;
 	    values.put(Metric.STREAMS, new Long(streamCount));
-	    values.put(Metric.BCTIME_PERCENTAGE, new Long(((Long)values.get(Metric.BCTIME)).longValue()/totalBCTime));
+	    values.put(Metric.BCTIME_PERCENTAGE, new Long(((Long)values.get(Metric.BCTIME)).longValue()*100/totalBCTime));
 	    values.put(Metric.VIEWERS, new Long(vsum/castCount));
 	    values.put(Metric.VIEWER_MINUTES, new Long(vmSum));
-	    values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(vmSum/totalViewerMinutes));
+	    values.put(Metric.VIEWER_MINUTE_PERCENTAGE, new Long(vmSum*100/totalViewerMinutes));
 	    values.put(Metric.VIEWER_PULL, pullSum);
 	    return values;
 	}
