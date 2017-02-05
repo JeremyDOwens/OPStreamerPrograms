@@ -8,7 +8,7 @@ Heroku PostgreSQL
 
 Required Database Schema:
 
-Programs (program_id SERIAL PRIMARY KEY, programName varchar(100) NOT NULL, sponsor varchar(100) NOT NULL, games varchar(255) NOT NULL)
+Programs (program_id SERIAL PRIMARY KEY, programName varchar(100) NOT NULL, sponsor varchar(100) NOT NULL, games varchar(255) NOT NULL, active boolean NOT NULL DEFAULT TRUE)
 
 Streamers (streamer_id SERIAL PRIMARY KEY, email varchar(100) NOT NULL, name varchar(50) NOT NULL, channel varchar(50) NOT NULL)
 

@@ -97,8 +97,10 @@ public final class ProgramProcessor {
 		
 		TimeZone tz = TimeZone.getTimeZone("America/Los_Angeles");
 		Calendar cal = Calendar.getInstance(tz);
+		int thisMonth = cal.get(Calendar.MONTH);
 		int lastMonth = cal.get(Calendar.MONTH) - 1;
-		if (lastMonth < 1) lastMonth = Calendar.DECEMBER;
+		System.out.println(lastMonth);
+		if (lastMonth < 0) lastMonth = Calendar.DECEMBER;
 		cal.set(Calendar.HOUR_OF_DAY, 0);
 		cal.set(Calendar.MINUTE, 0);
 		cal.set(Calendar.SECOND, 0);
@@ -115,11 +117,17 @@ public final class ProgramProcessor {
 		Timestamp pullStart = new Timestamp(cal.getTimeInMillis());
 		List<Timestamp[]> weeks = new ArrayList<>();
 		cal.add(Calendar.DAY_OF_YEAR, 8);
-		while (cal.get(Calendar.MONTH) == lastMonth || (cal.get(Calendar.DAY_OF_MONTH) == 1 && cal.get(Calendar.MONTH) == Calendar.getInstance().get(Calendar.MONTH))) {
-			Timestamp[] thisWeek = {weekStart, new Timestamp(cal.getTimeInMillis())};
-			weeks.add(thisWeek);
-			weekStart = new Timestamp(cal.getTimeInMillis());
-			cal.add(Calendar.DAY_OF_YEAR, 7);
+		while (cal.get(Calendar.MONTH) != thisMonth || (cal.get(Calendar.DAY_OF_MONTH) == 1 && cal.get(Calendar.MONTH) == Calendar.getInstance().get(Calendar.MONTH))) {
+			if (cal.get(Calendar.MONTH) != lastMonth) {
+				weekStart = new Timestamp(cal.getTimeInMillis());
+				cal.add(Calendar.DAY_OF_YEAR, 7);
+			}
+			else {
+				Timestamp[] thisWeek = {weekStart, new Timestamp(cal.getTimeInMillis())};
+				weeks.add(thisWeek);
+				weekStart = new Timestamp(cal.getTimeInMillis());
+				cal.add(Calendar.DAY_OF_YEAR, 7);
+			}
 		}
 		StringBuilder builder = new StringBuilder();
 		Map<String,Map<ProgramParticipant, Integer>> special = new HashMap<>();
@@ -159,8 +167,10 @@ public final class ProgramProcessor {
 		
 		//Process each individual week
 		for(Timestamp[] week: weeks) {
+			System.out.println(week[0]);
 			map = getStreams(week[0], week[1]);
 			for (ProgramParticipant participant: participants) {
+				System.out.println(participant.STREAMER.CHANNEL);
 				if (map.containsKey(participant.STREAMER.CHANNEL) && map.get(participant.STREAMER.CHANNEL).size() > 0) {
 					Map<Metric, Object> values = getMetrics(participant, map.get(participant.STREAMER.CHANNEL), week[0], week[1]);
 					if (values == null) continue;

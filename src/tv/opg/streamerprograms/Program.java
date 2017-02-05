@@ -23,6 +23,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +41,7 @@ public class Program {
 	/**List of games used in checks*/
 	public final String[] GAMES;
 	/**List of rules*/
+	public final boolean ACTIVE;
 	private Map<Integer, ProgramRule> rules;
 	
 	/**
@@ -55,11 +57,12 @@ public class Program {
 	 * @param programName String
 	 * @param sponsor String
 	 */
-	private Program(int id, String programName, String sponsor, String[] games) {
+	private Program(int id, String programName, String sponsor, String[] games, boolean active) {
 	    this.GAMES = games;
 		this.PROGRAM_ID = id;
 		this.PROGRAM_NAME = programName;
 	    this.SPONSOR = sponsor;
+	    this.ACTIVE = active;
 	    this.rules = new HashMap<>();
 
 	}
@@ -81,7 +84,7 @@ public class Program {
 	        ResultSet rs = ps.executeQuery();
 	        if (rs.next()) {
 	        	//Instantiate program with fields from database
-	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(",")); 
+	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(","), rs.getBoolean("active")); 
 	        }
 	        rs.close();
 	        ps.close();
@@ -111,7 +114,7 @@ public class Program {
 	        ps.setInt(1, programID);
 	        ResultSet rs = ps.executeQuery();
 	        if (rs.next()) {
-	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(","));
+	        	program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(","), rs.getBoolean("active"));
 	        }
 	        rs.close();
 	        ps.close();
@@ -442,7 +445,43 @@ public class Program {
 
 		return this;
 	}
+	public static Program activate(int programID) {
+		Connection connection = null;
+		try {
+			connection = DatabaseUrl.extract().getConnection();
+			PreparedStatement state = connection.prepareStatement("UPDATE Programs SET active = TRUE WHERE program_id = ?");
+			state.setInt(1,programID);
+			state.executeUpdate();
+			state.close();
+		}
+		catch (Exception e){
+			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
+		} finally {
+			if (connection != null) try{connection.close();} catch(SQLException e){}
+		}
+		
+		
+		return getProgram(programID);
+	}
 	
+	public static Program deactivate(int programID) {
+		Connection connection = null;
+		try {
+			connection = DatabaseUrl.extract().getConnection();
+			PreparedStatement state = connection.prepareStatement("UPDATE Programs SET active = FALSE WHERE program_id = ?");
+			state.setInt(1,programID);
+			state.executeUpdate();
+			state.close();
+		}
+		catch (Exception e){
+			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
+		} finally {
+			if (connection != null) try{connection.close();} catch(SQLException e){}
+		}
+		return getProgram(programID);
+	}
 	@Override
 	public String toString() {
 		return this.PROGRAM_NAME + ", " + this.SPONSOR;
