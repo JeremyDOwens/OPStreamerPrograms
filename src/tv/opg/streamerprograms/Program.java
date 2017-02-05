@@ -23,7 +23,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -100,6 +99,57 @@ public class Program {
 		return program;
 	}
 	
+	public static Program[] getPrograms() {
+		Connection connection = null;
+		ArrayList<Program> pList = new ArrayList<>();
+		try {
+	        connection = DatabaseUrl.extract().getConnection(); //Heroku postgres jdbc connection
+	        PreparedStatement ps = connection.prepareStatement("SELECT * FROM Programs;");
+	        ResultSet rs = ps.executeQuery();
+	        
+	        while (rs.next()) {
+	        	Program program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(","), rs.getBoolean("active"));
+	        	program.setRules();
+	        	pList.add(program); 
+	        }
+	        rs.close();
+	        ps.close();
+	        
+		} catch (Exception e){
+			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
+		} finally {
+			if (connection != null) try{connection.close();} catch(SQLException e){}
+		}
+		Program[] pArr = new Program[pList.size()];
+		return pList.toArray(pArr);
+	}
+	
+    public static Program[] getActivePrograms() {
+    	Connection connection = null;
+		ArrayList<Program> pList = new ArrayList<>();
+		try {
+	        connection = DatabaseUrl.extract().getConnection(); //Heroku postgres jdbc connection
+	        PreparedStatement ps = connection.prepareStatement("SELECT * FROM Programs WHERE active = TRUE;");
+	        ResultSet rs = ps.executeQuery();
+	        
+	        while (rs.next()) {
+	        	Program program = new Program(rs.getInt("program_id"), rs.getString("programName"), rs.getString("sponsor"), rs.getString("games").split(","), rs.getBoolean("active"));
+	        	program.setRules();
+	        	pList.add(program); 
+	        }
+	        rs.close();
+	        ps.close();
+	        
+		} catch (Exception e){
+			System.out.println(e.getMessage());
+			e.printStackTrace(System.out);
+		} finally {
+			if (connection != null) try{connection.close();} catch(SQLException e){}
+		}
+		Program[] pArr = new Program[pList.size()];
+		return pList.toArray(pArr);
+	}
 	/**
 	 * Alternative constructor calling the ID.
 	 * @param programID int The program_id stored in the database.
