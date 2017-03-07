@@ -187,13 +187,14 @@ public class Program {
 	 * @param sponsor String The company sponsoring the program.
 	 * @return Program An object representing the newly created program.
 	 */
-	public static Program createProgram(String programName, String sponsor, String programEmail, String emailPW, String rewardFrame) {
+	public static Program createProgram(String programName, String sponsor, String games, String programEmail, String emailPW, String rewardFrame) {
 		Connection connection = null;
 		try {
 	        connection = DatabaseUrl.extract().getConnection();
-	        PreparedStatement stmt = connection.prepareStatement("INSERT INTO Programs (programName,sponsor) VALUES(?,?)");
+	        PreparedStatement stmt = connection.prepareStatement("INSERT INTO Programs (programName,sponsor,games) VALUES(?,?,?)");
 	        stmt.setString(1, programName);
 	        stmt.setString(2, sponsor);
+	        stmt.setString(3, games);
 	        stmt.executeUpdate();
 	        stmt.close();
 	        Program p = getProgram(programName);
